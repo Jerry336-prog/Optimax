@@ -1,1 +1,15 @@
 @import "tailwindcss";
+.contact{
+    background-image: url(optimax_home.jpeg);
+    background-size: 100% 100%;
+    background-blend-mode: darken;
+    background-color: rgba(0, 0, 0, 0.563);
+    /* background-color: rgba(128, 0, 128, 0.465); */
+}
+.home{
+    background-image: url(smart-preview.png);
+    background-size: 100% 100%;
+    background-blend-mode: darken;
+    background-color: rgba(0, 0, 0, 0.574);
+    /* background-color: rgba(128, 0, 128, 0.465); */
+}

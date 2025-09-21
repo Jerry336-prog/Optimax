@@ -1,6 +1,30 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function MainRegister() {
+
+    let [formData, setFormData] = useState({
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    });
+  
+  let navigate = useNavigate();
+
+  let handlechange = (grab) => {
+    setFormData({ ...formData,[grab.target.name]: grab.target.value });
+  }
+  
+  let handlesubmit = (submit) => {
+    submit.preventDefault();
+    navigate("/userprofile", {
+      state: {
+      fullName: formData.fullName,
+      email: formData.email
+    }});
+    console.log(formData);
+  };
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 px-2 sm:px-0 ">
       <div className="w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto overflow-hidden bg-white rounded-lg shadow-md">
@@ -22,35 +46,39 @@ function MainRegister() {
           </p>
         </div>
         <div className="px-4 sm:px-6 py-4">
-          <form>
+          <form onSubmit={handlesubmit} >
             <div className="w-full mt-4">
-              <input
+              <input onChange={handlechange}
                 className="block w-full px-4 py-2 mt-2 text-gray-700 placeholder-gray-400 bg-white border border-purple-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none text-sm sm:text-base"
                 type="text"
+                name="fullName"
                 placeholder="Full Name"
                 aria-label="Full Name"
               />
             </div>
             <div className="w-full mt-4">
-              <input
+              <input onChange={handlechange}
                 className="block w-full px-4 py-2 mt-2 text-gray-700 placeholder-gray-400 bg-white border border-purple-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none text-sm sm:text-base"
                 type="email"
+                name="email"
                 placeholder="Email Address"
                 aria-label="Email Address"
               />
             </div>
             <div className="w-full mt-4">
-              <input
+              <input onChange={handlechange}
                 className="block w-full px-4 py-2 mt-2 text-gray-700 placeholder-gray-400 bg-white border border-purple-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none text-sm sm:text-base"
                 type="password"
+                name="password"
                 placeholder="Password"
                 aria-label="Password"
               />
             </div>
             <div className="w-full mt-4">
-              <input
+              <input onChange={handlechange}
                 className="block w-full px-4 py-2 mt-2 text-gray-700 placeholder-gray-400 bg-white border border-purple-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none text-sm sm:text-base"
                 type="password"
+                name="confirmPassword"
                 placeholder="Confirm Password"
                 aria-label="Confirm Password"
               />

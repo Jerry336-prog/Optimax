@@ -1,11 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect} from "react";
 import { Link } from "react-router-dom";
+import Aos from "aos";
+import "aos/dist/aos.css";
 
 function Header() {
   const [isOpen, setIsOpen] = useState(false);
 
+useEffect(() => {
+    Aos.init({ duration: 1000, once: true });
+  }, [])
+
   return (
-    <header className=" ">
+    <header className=" sticky transition-all duration-300 ease-in-out top-0 left-0 w-full z-50" data-aos="fade-down">
       <nav className="relative bg-white shadow dark:bg-white"> 
         <div className=" py-4 lg:px-10 md:pl-4 md:flex md:justify-between md:items-center w-[100%]">
           <div className="flex items-center justify-between pr-4 pl-4">

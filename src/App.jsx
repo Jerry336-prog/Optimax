@@ -5,11 +5,13 @@ import Footer from './constant/Footer'
 import MainHome from './UI/Home/MainHome'
 import MainAbout from './UI/About/MainAbout'
 import MainContact from './UI/Contact/MainContact'
-import MainShop from './UI/Shop/MainShop'
+import MainShop from './UI/shop/MainShop'
 import MainCart from './UI/Cart/MainCart'
 import MainSignIn from './UI/sign in/MainSignIn'
 import MainRegister from './UI/Register/MainRegister'
 import Forgotpass from './UI/forgotPassword/Forgotpass'
+import UserProfile from './UI/user/UserProfile'
+import AdminDashboard from './UI/admin/AdminDashboard'
 
 
 function App() {
@@ -72,10 +74,13 @@ function App() {
               <Footer />
             </>
           }
-        />    
+        />   
+ 
       <Route path="/MainSignIn" element={<MainSignIn />} />
       <Route path="/MainRegister" element={<MainRegister />} />
       <Route path='/forgotpass' element={<Forgotpass/>}/>
+      <Route path="/userprofile" element={<UserProfile />} />
+      <Route path="/admindashboard" element={<AdminDashboard />} />
      </Routes>
      </BrowserRouter>
     </div>
