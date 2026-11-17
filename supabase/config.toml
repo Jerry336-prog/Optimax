@@ -1,0 +1,12 @@
+project_id = "optimax-web"
+# Functions validate the signed-in user with Supabase Auth themselves.
+# The webhook independently verifies Paystack's HMAC signature.
+[functions.paystack-init]
+verify_jwt = false
+entrypoint = "./functions/paystack-init/index.js"
+[functions.paystack-verify]
+verify_jwt = false
+entrypoint = "./functions/paystack-verify/index.js"
+[functions.paystack-webhook]
+verify_jwt = false
+entrypoint = "./functions/paystack-webhook/index.js"

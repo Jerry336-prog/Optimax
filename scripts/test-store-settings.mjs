@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {prepareStoreSettings} from '../src/lib/storeSettings.js';
+const closed = {store_open:'false',closure_reason:'Restock',whatsapp:'+234 803 633 8604',phone:'08036338604'};
+let result=prepareStoreSettings(closed);
+assert.equal(result.values.whatsapp,'2348036338604');
+assert.equal(result.values.phone,closed.phone);
+assert.equal(result.values.closure_reason,'Restock');
+for(const reason of ['x','A'.repeat(5000)]) assert.equal(prepareStoreSettings({...closed,closure_reason:reason}).values.closure_reason,reason);
+assert.equal(prepareStoreSettings({...closed,closure_reason:' '}).field,'closure_reason');
+assert.equal(prepareStoreSettings({...closed,whatsapp:''}).field,'whatsapp');
+assert.equal(prepareStoreSettings({...closed,whatsapp:'234letters8036338604'}).field,'whatsapp');
+assert.equal(prepareStoreSettings({...closed,whatsapp:'+234 (803) 633-8604'}).values.whatsapp,'2348036338604');
+assert.equal(prepareStoreSettings({store_open:'true'}).values.store_open,true);
+console.log('PASS separate contact number, international phone formatting, targeted errors and unrestricted closure message length');

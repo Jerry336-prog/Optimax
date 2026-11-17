@@ -2,12 +2,177 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta
+      name="description"
+      content="Discover smart cameras, smart locks, connected home technology, and solar solutions at Optimax Resources."
+    />
+    <meta name="theme-color" content="#0b0b0f" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <title>Optimax — Smarter Everyday Living</title>
+    <script>
+      try {
+        const savedTheme = JSON.parse(
+          localStorage.getItem("optimax-shopping") || "null",
+        )?.state?.theme;
+        if (savedTheme === "light" || savedTheme === "dark")
+          document.documentElement.dataset.theme = savedTheme;
+      } catch {
+        /* Use the default theme if storage is unavailable. */
+      }
+    </script>
+    <style>
+      body {
+        margin: 0;
+        background: #0b0b0f;
+      }
+      html[data-theme="light"] body {
+        background: #f7f6fa;
+      }
+      .boot-shell {
+        --boot-block: #24232b;
+        --boot-line: #ffffff12;
+        max-width: 1440px;
+        margin: auto;
+        padding: 0 56px;
+      }
+      [data-theme="light"] .boot-shell {
+        --boot-block: #e5e1ec;
+        --boot-line: #21163018;
+      }
+      .boot-block {
+        background: var(--boot-block);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+      }
+      .boot-block:after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, #ffffff0c, transparent);
+        animation: boot-shimmer 1.65s ease-in-out infinite;
+        transform: translateX(-100%);
+      }
+      .boot-nav {
+        height: 118px;
+        border-bottom: 1px solid var(--boot-line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .boot-logo {
+        width: 150px;
+        height: 25px;
+      }
+      .boot-actions {
+        width: 230px;
+        height: 18px;
+      }
+      .boot-main {
+        min-height: 610px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 60px;
+        align-items: center;
+      }
+      .boot-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+      }
+      .boot-label {
+        width: 160px;
+        height: 11px;
+      }
+      .boot-title {
+        width: 90%;
+        height: 60px;
+      }
+      .boot-title.short {
+        width: 65%;
+      }
+      .boot-text {
+        width: 80%;
+        height: 11px;
+      }
+      .boot-text.short {
+        width: 60%;
+      }
+      .boot-button {
+        width: 170px;
+        height: 44px;
+        margin-top: 10px;
+      }
+      .boot-image {
+        height: 410px;
+        border-radius: 35px;
+      }
+      @keyframes boot-shimmer {
+        to {
+          transform: translateX(100%);
+        }
+      }
+      @media (max-width: 720px) {
+        .boot-shell {
+          padding: 0 18px;
+        }
+        .boot-nav {
+          height: 104px;
+        }
+        .boot-logo {
+          width: 120px;
+        }
+        .boot-actions {
+          width: 120px;
+        }
+        .boot-main {
+          grid-template-columns: 1fr;
+          gap: 40px;
+          padding: 50px 0 30px;
+        }
+        .boot-title {
+          height: 47px;
+        }
+        .boot-image {
+          height: 300px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-block:after {
+          animation: none;
+          display: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div
+        class="boot-shell"
+        role="status"
+        aria-label="Loading Optimax…"
+        aria-busy="true"
+      >
+        <div aria-hidden="true">
+          <div class="boot-nav">
+            <div class="boot-block boot-logo"></div>
+            <div class="boot-block boot-actions"></div>
+          </div>
+          <div class="boot-main">
+            <div class="boot-copy">
+              <div class="boot-block boot-label"></div>
+              <div class="boot-block boot-title"></div>
+              <div class="boot-block boot-title short"></div>
+              <div class="boot-block boot-text"></div>
+              <div class="boot-block boot-text short"></div>
+              <div class="boot-block boot-button"></div>
+            </div>
+            <div class="boot-block boot-image"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
