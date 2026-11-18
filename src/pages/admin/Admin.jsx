@@ -1,3 +1,8 @@
+import RestockProduct from "../../components/admin/RestockProduct";
+import { useStockLevels } from "../../hooks/useStockLevels";
+import { orderReference, matchesOrderSearch, matchesInvoiceSearch } from "../../lib/orderReference";
+import InvoiceActions from "../../components/invoice/InvoiceActions";
+import { invoiceDate, invoiceMoney } from "../../lib/invoice";
 import { prepareStoreSettings } from "../../lib/storeSettings";
 import ProductEditor from "../../components/admin/ProductEditor";
 import CustomerList from "../../components/admin/CustomerList";
@@ -5,7 +10,7 @@ import { resolveMedia } from "../../lib/productEditor";
 import Skeleton from "../../components/ui/Skeleton";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { requireBackend, resultOf, backendError } from "../../lib/supabase";
 import { useQuery } from "../../hooks/useQuery";
 import { useBusiness } from "../../hooks/useBusiness";
@@ -21,12 +26,15 @@ const transitions = {
 };
 export default function Admin() {
   const query = useQuery(adminQuery);
-  const [tab, setTab] = useState("overview");
+  const stocks = useStockLevels();
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(() => ["products", "orders", "invoices", "customers", "reviews", "enquiries", "settings"].includes(params.get("tab")) ? params.get("tab") : "overview");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(null);
   const [editorVersion, setEditorVersion] = useState(0);
   const [search, setSearch] = useState("");
+  const [referenceSearch, setReferenceSearch] = useState("");
   const [confirm, setConfirm] = useState(null);
   async function mutate(action, success = "Saved successfully.") {
     if (busy) return;
@@ -45,7 +53,7 @@ export default function Admin() {
   function saveProduct(values) {
     return mutate(
       async () => {
-        const { gallery, frames, ...fields } = values;
+        const { gallery, ...fields } = values;
         if (
           !Number.isInteger(fields.stock) ||
           fields.stock < 0 ||
@@ -55,11 +63,9 @@ export default function Admin() {
           throw new Error(
             "Enter a valid price and a whole-number stock quantity.",
           );
-        const [images, spin_images] = await Promise.all([
-          resolveMedia(gallery, uploadImages),
-          resolveMedia(frames, uploadImages),
-        ]);
-        const payload = { ...fields, images, spin_images };
+        const images = await resolveMedia(gallery, uploadImages);
+        const payload = { ...fields, images };
+        if (editing) delete payload.stock;
         resultOf(
           await (editing
             ? requireBackend()
@@ -90,27 +96,6 @@ export default function Admin() {
       "Order and delivery timeline updated.",
     );
   }
-  function couponSubmit(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const f = new FormData(form);
-    mutate(async () => {
-      resultOf(
-        await requireBackend()
-          .from("coupons")
-          .upsert({
-            code: f.get("code").trim().toUpperCase(),
-            percent: Number(f.get("percent")),
-            minimum: Number(f.get("minimum")),
-            expires_at: f.get("expires_at")
-              ? new Date(f.get("expires_at")).toISOString()
-              : null,
-            active: true,
-          }),
-      );
-      form.reset();
-    });
-  }
   function settingsSubmit(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -135,7 +120,11 @@ export default function Admin() {
       useBusiness.setState((s) => ({ business: { ...s.business, ...data }, loading: false, error: null }));
     }, "Store settings saved across the website.");
   }
-  const data = query.data;
+  const data = query.data && { ...query.data, products: query.data.products.map(product => ({ ...product, stock: stocks[product.id] ?? product.stock })) };
+  const invoicesByOrder = new Map(data?.invoices.map(invoice => [invoice.order_id, invoice]) || []);
+  const matchingOrders = data?.orders.filter(order => matchesOrderSearch(order, referenceSearch, invoicesByOrder.get(order.id))) || [];
+  const filteredOrders = data?.orders.filter(order => matchesOrderSearch(order, search, invoicesByOrder.get(order.id))) || [];
+  const filteredInvoices = data?.invoices.filter(invoice => matchesInvoiceSearch(invoice, search)) || [];
   return (
     <section className="container page admin-page">
       <p className="eyebrow">OPTIMAX MANAGEMENT</p>
@@ -145,13 +134,22 @@ export default function Admin() {
           Your account
         </Link>
       </div>
+      <div className="admin-reference-lookup">
+        <label className="field-label">Find an order or invoice
+          <input type="search" value={referenceSearch} onChange={event => setReferenceSearch(event.target.value)} placeholder="Order reference, invoice number, customer name or phone" />
+        </label>
+        {referenceSearch.trim() && data && <div className="account-records admin-lookup-results" aria-label="Order and invoice search results">
+          <p role="status">{matchingOrders.length} matching {matchingOrders.length === 1 ? "order" : "orders"}</p>
+          {matchingOrders.map(order => <article className="panel" key={order.id}><div className="section-heading"><div><p className="eyebrow">{orderReference(order)}</p><h2>{order.address_snapshot.recipient || "Customer"}</h2></div><span className="status-badge">{order.payment_status}</span></div><p>{currency(order.total)} · {order.status}</p><button className="button secondary" onClick={() => {setTab("orders");setSearch(orderReference(order));setReferenceSearch("");}}>View order details</button>{invoicesByOrder.has(order.id) && <InvoiceActions orderId={order.id} />}</article>)}
+        </div>}
+      </div>
       <div className="filter-tabs">
         {[
           "overview",
           "products",
           "orders",
+          "invoices",
           "customers",
-          "coupons",
           "reviews",
           "enquiries",
           "settings",
@@ -263,8 +261,8 @@ export default function Admin() {
             </>
           )}
           {tab === "products" && (
-            <div className="admin-layout">
-              <div className="panel">
+            <div className="admin-layout admin-products-layout">
+              <div className="panel product-editor-panel">
                 <h2>{editing ? "Edit product" : "Add a product"}</h2>
                 <ProductEditor
                   key={editing?.id || `new-${editorVersion}`}
@@ -277,7 +275,7 @@ export default function Admin() {
                   }}
                 />
               </div>
-              <div className="panel">
+              <div className="panel inventory-panel" tabIndex="0" role="region" aria-label="Product inventory">
                 <h2>Inventory</h2>
                 <input
                   aria-label="Search inventory"
@@ -331,20 +329,29 @@ export default function Admin() {
                             Delete
                           </button>
                         </div>
+                        <RestockProduct product={p} onRestock={(id, stock) => window.dispatchEvent(new CustomEvent("optimax-stock-changed", { detail: { id, stock } }))} />
                       </div>
                     </div>
                   ))}
               </div>
             </div>
           )}
+          {tab === "invoices" && <div className="account-records">
+            <h2>Paid invoices</h2>
+            <p>Issued automatically after verified payment. No stamp or approval is required.</p>
+            <label className="field-label">Search invoices<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Order reference, invoice number or customer" /></label>
+            {!filteredInvoices.length && <p>{data.invoices.length ? "No invoices match your search." : "No paid invoices yet."}</p>}
+            {filteredInvoices.map(invoice => <article className="panel" key={invoice.id}><div className="section-heading"><div><p className="eyebrow">{invoice.invoice_number}</p><h2>{invoice.customer_snapshot.name || "Customer"}</h2></div><span className="status-badge">Paid</span></div><p>{invoiceDate(invoice.issued_at)} · {invoiceMoney(invoice.total)}</p><p>Order {invoice.order_ref}</p><InvoiceActions orderId={invoice.order_id} /></article>)}
+          </div>}
           {tab === "orders" && (
             <div className="account-records">
-              {!data.orders.length && <p>No orders yet.</p>}
-              {data.orders.map((o) => (
+              <label className="field-label">Search orders<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Order reference, invoice number, customer or phone" /></label>
+              {!filteredOrders.length && <p>{data.orders.length ? "No orders match your search." : "No orders yet."}</p>}
+              {filteredOrders.map((o) => (
                 <article className="panel" key={o.id}>
                   <div className="section-heading">
                     <div>
-                      <p className="eyebrow">{o.id}</p>
+                      <p className="eyebrow">{orderReference(o)}</p>
                       <h2>
                         {currency(o.total)} · {o.status}
                       </h2>
@@ -362,6 +369,7 @@ export default function Admin() {
                       .map((i) => `${i.product_name} × ${i.quantity}`)
                       .join(" · ")}
                   </p>
+                  {o.payment_status === "paid" && <InvoiceActions orderId={o.id} />}
                   {transitions[o.status]?.length > 0 && (
                     <form
                       className="admin-form"
@@ -408,83 +416,6 @@ export default function Admin() {
               orders={data.orders}
               onChange={query.refresh}
             />
-          )}
-          {tab === "coupons" && (
-            <div className="admin-layout">
-              <form className="panel admin-form" onSubmit={couponSubmit}>
-                <h2>Create or update coupon</h2>
-                <label>
-                  Code
-                  <input
-                    name="code"
-                    required
-                    minLength={3}
-                    maxLength={32}
-                    pattern="[A-Za-z0-9_-]+"
-                  />
-                </label>
-                <label>
-                  Discount (%)
-                  <input
-                    type="number"
-                    name="percent"
-                    required
-                    min="1"
-                    max="100"
-                    step="1"
-                  />
-                </label>
-                <label>
-                  Minimum product subtotal
-                  <input
-                    name="minimum"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    defaultValue="0"
-                    required
-                  />
-                </label>
-                <label>
-                  Expires at (optional)
-                  <input type="datetime-local" name="expires_at" />
-                </label>
-                <button className="button primary" disabled={busy}>
-                  Save coupon
-                </button>
-              </form>
-              <div className="panel">
-                {data.coupons.map((c) => (
-                  <div className="inventory-row" key={c.code}>
-                    <div>
-                      <strong>
-                        {c.code} · {c.percent}%
-                      </strong>
-                      <p>
-                        Minimum {currency(c.minimum)} ·{" "}
-                        {c.active ? "Active" : "Disabled"}
-                      </p>
-                    </div>
-                    <button
-                      className="button secondary"
-                      disabled={busy}
-                      onClick={() =>
-                        mutate(async () =>
-                          resultOf(
-                            await requireBackend()
-                              .from("coupons")
-                              .update({ active: !c.active })
-                              .eq("code", c.code),
-                          ),
-                        )
-                      }
-                    >
-                      {c.active ? "Disable" : "Enable"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
           {tab === "reviews" && (
             <div className="account-records">

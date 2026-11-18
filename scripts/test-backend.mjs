@@ -31,17 +31,17 @@ async function stock() {
     await db.query("select stock from public.products where id=$1", [product])
   ).rows[0].stock;
 }
-async function place(items, addr = address, key = request, coupon = "") {
+async function place(items, addr = address, key = request) {
   return (
     await db.query(
-      "select public.place_order($1::jsonb,$2::uuid,$3::uuid,$4::text) as id",
-      [JSON.stringify(items), addr, key, coupon],
+      "select public.place_order($1::jsonb,$2::uuid,$3::uuid) as id",
+      [JSON.stringify(items), addr, key],
     )
   ).rows[0].id;
 }
 try {
   await db.exec(
-    `create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key,raw_user_meta_data jsonb default '{}'); create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$; grant usage on schema public,auth to anon,authenticated;`,
+    `create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}'); create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$; grant usage on schema public,auth to anon,authenticated;`,
   );
   // Minimal Storage schema for policy checks; hosted Supabase supplies this.
   await db.exec(`create schema storage;
@@ -52,6 +52,7 @@ try {
     grant select,insert,delete on storage.objects to anon,authenticated;
     create function storage.foldername(text) returns text[] language sql immutable as $$ select (string_to_array($1,'/'))[1:array_length(string_to_array($1,'/'),1)-1] $$;
     create function storage.extension(text) returns text language sql immutable as $$ select reverse(split_part(reverse($1),'.',1)) $$;`);
+  const invoices = await readFile(new URL("../supabase/migrations/202611180001_paid_invoices.sql", import.meta.url), "utf8");
   const photos = await readFile(new URL("../supabase/migrations/202611170006_profile_photos.sql", import.meta.url), "utf8");
   const migration = await readFile(
     new URL(
@@ -76,6 +77,10 @@ try {
   );
   const closure = await readFile(new URL("../supabase/migrations/202611170004_store_closure.sql", import.meta.url), "utf8");
   const closureMessage = await readFile(new URL("../supabase/migrations/202611170005_closure_message.sql", import.meta.url), "utf8");
+  const noCoupons = await readFile(new URL("../supabase/migrations/202611180002_remove_coupons.sql", import.meta.url), "utf8");
+  const references = await readFile(new URL("../supabase/migrations/202611180003_order_references.sql", import.meta.url), "utf8");
+  const noRotation = await readFile(new URL("../supabase/migrations/202611180004_remove_product_rotation.sql", import.meta.url), "utf8");
+  const restock = await readFile(new URL("../supabase/migrations/202611180005_product_restock.sql", import.meta.url), "utf8");
   await check("migrations apply and can be reapplied", async () => {
     await db.exec(migration);
     await db.exec(payments);
@@ -83,12 +88,22 @@ try {
     await db.exec(closure);
     await db.exec(closureMessage);
     await db.exec(photos);
+    await db.exec(invoices);
+    await db.exec(noCoupons);
+    await db.exec(references);
+    await db.exec(noRotation);
+    await db.exec(restock);
     await db.exec(migration);
     await db.exec(payments);
     await db.exec(roles);
     await db.exec(closure);
     await db.exec(closureMessage);
     await db.exec(photos);
+    await db.exec(invoices);
+    await db.exec(noCoupons);
+    await db.exec(references);
+    await db.exec(noRotation);
+    await db.exec(restock);
   });
   await db.query("insert into auth.users(id) values($1),($2),($3)", [
     a,
@@ -106,9 +121,23 @@ try {
     "insert into public.addresses(id,user_id,label,address_line,city,state) values($1,$2,'Home','123 Example Road','Lagos','Lagos'),($3,$4,'Home','456 Example Road','Lagos','Lagos')",
     [address, a, addressB, b],
   );
-  await db.exec(
-    "insert into public.coupons(code,percent,minimum) values('SAVE10',10,100)",
-  );
+  await check("only admins can restock; increments preserve existing stock and reject invalid units", async () => {
+    await identity(a);
+    await assert.rejects(() => db.query("select public.add_product_stock($1,20)", [product]), /administrators/);
+    await identity(null, "anon");
+    await assert.rejects(() => db.query("select public.add_product_stock($1,20)", [product]), /permission denied/);
+    await identity(admin);
+    for (const quantity of [0, -1, null]) await assert.rejects(() => db.query("select public.add_product_stock($1,$2)", [product, quantity]), /positive whole/);
+    assert.equal((await db.query("select public.add_product_stock($1,20) as stock", [product])).rows[0].stock,23);
+    assert.equal((await db.query("select public.add_product_stock($1,7) as stock", [product])).rows[0].stock,30);
+    await assert.rejects(() => db.query("select public.add_product_stock($1,1)", ["10000000-0000-4000-8000-000000000099"]), /not found/);
+    await root();
+    await db.query("update public.products set stock=3 where id=$1", [product]);
+  });
+  await check("coupon storage and the old discounted checkout endpoint are removed", async () => {
+    assert.equal((await db.query("select to_regclass('public.coupons') as coupons")).rows[0].coupons,null);
+    await assert.rejects(()=>db.query("select public.place_order('[]'::jsonb,$1::uuid,$2::uuid,'SAVE10')",[address,request]),/does not exist/);
+  });
   await check("anonymous checkout is denied", async () => {
     await identity(null, "anon");
     await assert.rejects(() => place([{ id: product, quantity: 1 }]));
@@ -174,21 +203,20 @@ try {
   });
   let order;
   await check(
-    "server calculates price, coupon, stock and order snapshot",
+    "server calculates full price, stock and order snapshot",
     async () => {
       await identity(a);
       order = await place(
         [{ id: product, quantity: 2, price: 0, total: 0 }],
         address,
         request,
-        "save10",
       );
       await root();
       const o = (
         await db.query("select * from public.orders where id=$1", [order])
       ).rows[0];
-      assert.equal(Number(o.total), 180);
-      assert.equal(Number(o.discount), 20);
+      assert.equal(Number(o.total), 200);
+      assert.equal(Number(o.discount), 0);
       assert.equal(o.payment_status, "unpaid");
       assert.equal(o.address_snapshot.address_line, "123 Example Road");
       assert.equal(await stock(), 1);
@@ -392,6 +420,11 @@ try {
       );
     },
   );
+  await check("unpaid orders cannot issue invoices", async () => {
+    await root();
+    assert.equal((await db.query("select * from public.invoices where order_id=$1",[order])).rows.length,0);
+    await assert.rejects(()=>db.query("select public.create_paid_invoice($1)",[order]),/verified paid order/);
+  });
   let session;
   await identity(a);
   order = await place(
@@ -512,6 +545,30 @@ try {
       1,
     );
   });
+  await check("verified payment automatically issues one immutable invoice", async () => {
+    await identity(a);
+    const invoice=(await db.query("select * from public.invoices where order_id=$1",[order])).rows[0];
+    assert.ok(invoice.invoice_number.startsWith('OPT-'));
+    assert.equal(Number(invoice.total),100);
+    assert.equal(invoice.payment_reference,session.reference);
+    assert.equal(invoice.order_ref,(await db.query("select order_ref from public.orders where id=$1",[order])).rows[0].order_ref);
+    assert.equal(invoice.items[0].name,'Camera');
+    assert.equal((await db.query("select * from public.invoices where order_id=$1",[order])).rows.length,1);
+    await assert.rejects(()=>db.query("update public.invoices set total=0 where id=$1",[invoice.id]));
+    await assert.rejects(()=>db.query("select public.create_paid_invoice($1)",[order]));
+    await identity(b);
+    assert.equal((await db.query("select * from public.invoices")).rows.length,0);
+    await identity(admin);
+    assert.equal((await db.query("select * from public.invoices where order_id=$1",[order])).rows.length,1);
+    await root();
+    await assert.rejects(()=>db.query("update public.invoices set payment_reference='tampered' where id=$1",[invoice.id]),/cannot be changed/);
+    await db.exec(invoices);
+    await db.exec(noCoupons);
+    await db.exec(references);
+    await db.exec(noRotation);
+    await db.exec(restock);
+    assert.equal((await db.query("select * from public.invoices where order_id=$1",[order])).rows.length,1);
+  });
   await check("reopening restores checkout and payments", async () => {
     await identity(admin);
     await db.exec("update public.site_settings set store_open=true where id='store'");
@@ -607,6 +664,43 @@ try {
       );
     },
   );
+  await check("issued invoice snapshots survive later product, profile and business edits", async () => {
+    await root();
+    const before=(await db.query("select * from public.invoices order by created_at limit 1")).rows[0];
+    await db.exec("update public.site_settings set email='changed@example.com' where id='store'");
+    await db.query("update public.products set price=999,name='Changed product' where id=$1",[product]);
+    await db.query("update public.profiles set full_name='Changed name' where id=$1",[a]);
+    const after=(await db.query("select * from public.invoices where id=$1",[before.id])).rows[0];
+    assert.deepEqual(after,before);
+    await assert.rejects(()=>db.query("delete from public.invoices where id=$1",[before.id]),/cannot be changed/);
+  });
+  await check("migration backfills historical verified payments without duplicating invoices", async () => {
+    await root();
+    const pending=(await db.query("select s.* from public.payment_sessions s join public.orders o on o.id=s.order_id where s.status='pending' and o.payment_status='pending' limit 1")).rows[0];
+    assert.ok(pending);
+    await db.exec("drop trigger invoice_after_verified_payment on public.orders");
+    await identity(null,'service_role');
+    await db.query("select public.complete_payment($1,1001,$2,'NGN')",[pending.reference,pending.amount]);
+    await root();
+    assert.equal((await db.query("select * from public.invoices where order_id=$1",[pending.order_id])).rows.length,0);
+    await db.exec(references);
+    await db.exec(noRotation);
+    await db.exec(restock);
+    await db.exec(noCoupons);
+    await db.exec(references);
+    await db.exec(noRotation);
+    await db.exec(restock);
+    await db.exec(references);
+    await db.exec(noRotation);
+    await db.exec(restock);
+    await db.exec(noCoupons);
+    await db.exec(references);
+    await db.exec(noRotation);
+    await db.exec(restock);
+    const generated=(await db.query("select * from public.invoices where order_id=$1",[pending.order_id])).rows;
+    assert.equal(generated.length,1);
+    assert.equal(generated[0].payment_reference,pending.reference);
+  });
   console.log(
     `\n${checks} backend checks passed in isolated PostgreSQL. No live data changed.`,
   );

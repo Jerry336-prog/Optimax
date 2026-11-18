@@ -242,6 +242,7 @@ export default function Layout() {
           <span>© {new Date().getFullYear()} Optimax Resources.</span>
           <span>Smart devices. Human possibilities.</span>
           <Link to="/privacy">Privacy policy</Link>
+          <Link to="/image-credits">Image credits</Link>
         </div>
       </footer>
     </>

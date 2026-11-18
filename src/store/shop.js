@@ -10,7 +10,6 @@ export const useShop = create(
       setCartSyncing: (cartSyncing) => set({ cartSyncing }),
       wishlist: [],
       recentlyViewed: [],
-      comparison: [],
       theme: "dark",
       setCart: (cart, cartOwner, cartDirty = false) =>
         set({ cart, cartOwner, cartDirty }),
@@ -62,23 +61,22 @@ export const useShop = create(
             ...s.recentlyViewed.filter((i) => i.id !== product.id),
           ].slice(0, 12),
         })),
-      compare: (product) =>
-        set((s) => ({
-          comparison: s.comparison.some((p) => p.id === product.id)
-            ? s.comparison.filter((p) => p.id !== product.id)
-            : [...s.comparison.slice(-2), product],
-        })),
     }),
     {
       name: "optimax-shopping",
       version: 1,
+      merge: (persisted, current) => {
+        const clean = { ...persisted };
+        delete clean.comparison;
+        delete clean.compare;
+        return { ...current, ...clean };
+      },
       partialize: ({
         cart,
         cartOwner,
         cartDirty,
         wishlist,
         recentlyViewed,
-        comparison,
         theme,
       }) => ({
         cart,
@@ -86,7 +84,6 @@ export const useShop = create(
         cartDirty,
         wishlist,
         recentlyViewed,
-        comparison,
         theme,
       }),
     },

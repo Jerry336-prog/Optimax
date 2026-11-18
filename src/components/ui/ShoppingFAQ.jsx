@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 const questions = [
   [
     "Which camera is right for my space?",
-    "Start with where it will be used, the area you want to cover, and the available power and network connection. Check each product’s specifications, or ask us to help compare suitable options.",
+    "Start with where it will be used, the area you want to cover, and the available power and network connection. Check each product’s specifications, or ask us to help choose a suitable option.",
   ],
   [
     "What should I check before choosing a smart lock?",

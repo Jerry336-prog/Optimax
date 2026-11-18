@@ -20,10 +20,10 @@ export default function ProductCard({ product }) {
           <Heart size={18} />
         </button>
         <span className="product-tag">
-          {product.stock > 0 ? "Available" : "Sold out"}
+          {product.stock > 0 ? `${product.stock} available` : "Sold out"}
         </span>
       </div>
-      <p className="eyebrow">{product.category?.replaceAll("-", " ")}</p>
+      <p className="eyebrow">{product.category?.replaceAll("-", " ")}{product.specifications?.["Listing type"] === "Demo product" && <span className="demo-product-label"> · Demo</span>}</p>
       <Link className="product-title" to={`/product/${product.id}`}>
         {product.name}
         <ArrowUpRight size={18} />

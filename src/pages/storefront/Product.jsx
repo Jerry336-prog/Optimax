@@ -1,8 +1,9 @@
+import { useStockLevels } from "../../hooks/useStockLevels";
 import { ArrowUpRight, ArrowLeft } from "lucide-react";
 import Skeleton from "../../components/ui/Skeleton";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Heart, ShoppingBag, ArrowLeftRight, Rotate3d } from "lucide-react";
+import { Heart, ShoppingBag } from "lucide-react";
 import { useQuery } from "../../hooks/useQuery";
 import { useWishlist } from "../../hooks/useWishlist";
 import { currency, productQuery, productImage } from "../../services/catalog";
@@ -12,16 +13,17 @@ import { useSession } from "../../store/session";
 import { useShop } from "../../store/shop";
 import { useBusiness } from "../../hooks/useBusiness";
 import ProductReviews from "../../components/product/ProductReviews";
-function ProductContent({ product }) {
+function ProductContent({ product: originalProduct }) {
+  const stocks = useStockLevels();
+  const stock = stocks[originalProduct.id] ?? originalProduct.stock;
+  const product = useMemo(() => ({ ...originalProduct, stock }), [originalProduct, stock]);
   const { user, loading: authLoading } = useSession();
-  const { addToCart, view, compare, comparison, cartSyncing, cartOwner } =
+  const { addToCart, view, cartSyncing, cartOwner } =
     useShop();
   const business = useBusiness((s) => s.business);
   const wish = useWishlist(product);
   const [added, setAdded] = useState(false);
   const [image, setImage] = useState(productImage(product));
-  const [frame, setFrame] = useState(0);
-  const [spin, setSpin] = useState(false);
   const [message, setMessage] = useState("");
   useEffect(() => {
     if (authLoading) return;
@@ -31,30 +33,11 @@ function ProductContent({ product }) {
         setMessage(backendError(error)),
       );
   }, [product, user, view, authLoading]);
-  const spinImages = product.spin_images || [];
   return (
     <>
       <div className="product-detail">
         <div>
-          <div className="detail-image">
-            <img
-              src={spin ? spinImages[frame] : image}
-              alt={`${product.name}${spin ? ` — angle ${frame + 1}` : ""}`}
-            />
-          </div>
-          {spin ? (
-            <label className="field-label">
-              Rotate product · {frame + 1} / {spinImages.length}
-              <input
-                aria-label="360 degree product angle"
-                type="range"
-                min="0"
-                max={spinImages.length - 1}
-                value={frame}
-                onChange={(e) => setFrame(Number(e.target.value))}
-              />
-            </label>
-          ) : (
+          <div className="detail-image"><img src={image} alt={product.name} /></div>
             <div className="image-thumbnails">
               {(product.images?.length
                 ? product.images
@@ -70,13 +53,6 @@ function ProductContent({ product }) {
                 </button>
               ))}
             </div>
-          )}
-          {spinImages.length > 1 && (
-            <button className="button secondary" onClick={() => setSpin(!spin)}>
-              <Rotate3d size={17} />
-              {spin ? "Show gallery" : "Explore 360° view"}
-            </button>
-          )}
         </div>
         <div>
           <p className="eyebrow">{product.category.replaceAll("-", " ")}</p>
@@ -113,15 +89,6 @@ function ProductContent({ product }) {
             </button>
           </div>
           <div className="product-links">
-            <button className="text-link" onClick={() => compare(product)}>
-              <ArrowLeftRight size={15} />
-              {comparison.some((p) => p.id === product.id)
-                ? "Remove from comparison"
-                : "Compare this product"}
-            </button>
-            <Link className="text-link" to="/compare">
-              View comparison <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
-            </Link>
             {business.whatsapp && (
               <a
                 className="button secondary"

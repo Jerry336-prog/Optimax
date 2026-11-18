@@ -1,7 +1,9 @@
+import { imageCredits } from "../../config/imageCredits";
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { collections } from "../../lib/collections";
 export default function Info({ kind }) {
+  if (kind === "image-credits") return <section className="container page"><p className="eyebrow">IMAGE CREDITS</p><h1>Product photography.</h1><p className="page-intro">Additional representative images used in our demo catalog. Images are displayed as Wikimedia-provided resized versions; no other edits were made.</p><div className="account-records">{imageCredits.map(image => <article className="panel" key={image.file}><h2>{image.name}</h2><p>Photo by {image.author} · <a className="text-link" href={image.licenseUrl} target="_blank" rel="noreferrer">{image.license}</a></p><a className="text-link" href={image.source} target="_blank" rel="noreferrer">Original image and license <ArrowUpRight size={16} aria-hidden="true" /></a></article>)}</div></section>;
   if (kind === "categories")
     return (
       <section className="container page">
@@ -15,7 +17,7 @@ export default function Info({ kind }) {
               to={`/shop?category=${c.slug}`}
             >
               <div className="collection-image">
-                <img src={`/product ${c.image}.jpg`} alt={c.name} />
+                <img src={c.image} alt={c.name} />
               </div>
               <h2>{c.name}</h2>
               <p>{c.label} <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" /></p>

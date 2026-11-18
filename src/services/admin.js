@@ -15,20 +15,20 @@ async function allRows(table, select = "*") {
   }
 }
 export async function adminQuery() {
-  const [products, orders, profiles, reviews, enquiries, coupons, settings] =
+  const [products, orders, profiles, reviews, enquiries, settings, invoices] =
     await Promise.all([
       allRows("products"),
       allRows("orders", "*,order_items(*)"),
       allRows("profiles"),
       allRows("reviews", "*,product:products(name)"),
       allRows("enquiries"),
-      requireBackend().from("coupons").select("*").order("code").then(resultOf),
       requireBackend()
         .from("site_settings")
         .select("*")
         .eq("id", "store")
         .single()
         .then(resultOf),
+      allRows("invoices"),
     ]);
-  return { products, orders, profiles, reviews, enquiries, coupons, settings };
+  return { products, orders, profiles, reviews, enquiries, settings, invoices };
 }

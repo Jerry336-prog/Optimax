@@ -28,3 +28,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Generated invoice QA samples
+/output/pdf/

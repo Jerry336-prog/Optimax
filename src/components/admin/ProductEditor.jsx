@@ -52,11 +52,7 @@ function ImagePicker({ label, items, onChange, disabled, onFiles }) {
             <div className="editor-image" key={item.id}>
               <img src={item.url} alt={`${label} preview ${index + 1}`} />
               <span className="image-position">
-                {label.includes("360")
-                  ? `Frame ${index + 1}`
-                  : index === 0
-                    ? "Cover"
-                    : index + 1}
+                {index === 0 ? "Cover" : index + 1}
               </span>
               <button
                 type="button"
@@ -100,9 +96,6 @@ function existingImages(urls = []) {
 }
 export default function ProductEditor({ product, busy, onSave, onCancel }) {
   const [images, setImages] = useState(() => existingImages(product?.images));
-  const [frames, setFrames] = useState(() =>
-    existingImages(product?.spin_images),
-  );
   const [specs, setSpecs] = useState(() =>
     specificationsToRows(product?.specifications),
   );
@@ -151,11 +144,7 @@ export default function ProductEditor({ product, busy, onSave, onCancel }) {
       };
       if (values.active && !images.length)
         throw new Error("Add at least one product image before publishing.");
-      if (frames.length === 1)
-        throw new Error(
-          "A 360° view needs at least two frames. Add another frame or remove this one.",
-        );
-      onSave({ ...values, gallery: images, frames });
+      onSave({ ...values, gallery: images });
     } catch (error) {
       setError(error.message);
     }
@@ -200,14 +189,17 @@ export default function ProductEditor({ product, busy, onSave, onCancel }) {
           Stock quantity
           <input
             name="stock"
+            readOnly={Boolean(product)}
             type="number"
             min="0"
             step="1"
             required
-            defaultValue={product?.stock ?? 0}
+            value={product ? product.stock : undefined}
+            defaultValue={product ? undefined : 0}
           />
         </label>
       </div>
+      {product && <p className="editor-help">Stock updates automatically as orders are placed. Use Add stock in the inventory list to add new units.</p>}
       <label>
         Description
         <textarea
@@ -285,26 +277,6 @@ export default function ProductEditor({ product, busy, onSave, onCancel }) {
           Add specification
         </button>
       </fieldset>
-      <details
-        className="optional-editor"
-        open={product?.spin_images?.length > 0 || undefined}
-      >
-        <summary>
-          360° product view <span>Optional</span>
-        </summary>
-        <p className="editor-help">
-          Only needed if you have photographs of the same product from different
-          angles. Upload them in rotation order, then use the arrows to arrange
-          them.
-        </p>
-        <ImagePicker
-          label="Upload 360° frames"
-          items={frames}
-          onChange={setFrames}
-          disabled={busy}
-          onFiles={(files) => addFiles(files, setFrames)}
-        />
-      </details>
       <label className="check-label">
         <input
           name="active"

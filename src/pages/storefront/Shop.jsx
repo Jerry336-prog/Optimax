@@ -1,3 +1,4 @@
+import { useStockLevels } from "../../hooks/useStockLevels";
 import Skeleton from "../../components/ui/Skeleton";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -6,6 +7,7 @@ import { getProducts } from "../../services/catalog";
 import ProductCard from "../../components/product/ProductCard";
 import { collections } from "../../lib/collections";
 export default function Shop() {
+  const stocks = useStockLevels();
   const [params, setParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
@@ -31,7 +33,7 @@ export default function Shop() {
       value ? p.set(key, value) : p.delete(key);
       return p;
     });
-  const filtered = products
+  const filtered = products.map(product => ({ ...product, stock: stocks[product.id] ?? product.stock }))
     .filter(
       (p) =>
         (!category || p.category === category) &&

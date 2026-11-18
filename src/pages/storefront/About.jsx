@@ -21,7 +21,7 @@ const values = [
   {
     Icon: MessagesSquare,
     title: "Keep it understandable.",
-    text: "Features should help you make a decision. We aim for clear product information, useful comparisons, and conversations without the unnecessary jargon.",
+    text: "Features should help you make a decision. We aim for clear product information, practical guidance, and conversations without the unnecessary jargon.",
   },
 ];
 export default function About() {

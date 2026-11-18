@@ -56,9 +56,9 @@ Signup includes an optional photo picker. When email confirmation is required, t
 - Auth signup/signin/signout, confirmation redirect, forgot/reset password, session persistence, and role-protected administration.
 - Profile editing, address CRUD, customer order history/detail/timeline, and pending/unpaid order cancellation.
 - Guest device cart/wishlist/history; signed-in cart, wishlist and history are stored per user in Supabase. Comparison/theme remain device-local.
-- Transactional checkout with owned-address validation, stock locking, coupon calculation, idempotent requests, and price snapshots.
+- Transactional checkout with owned-address validation, stock locking, full-price totals, idempotent requests, and price snapshots.
 - Paystack initialization, callback verification, signed-webhook reconciliation, and idempotent payment recording.
-- Admin product CRUD/publishing/stock, order-status transitions/tracking, customer notifications, coupons, review moderation, enquiry inbox, contact settings, and analytics based on stored records.
+- Admin product CRUD/publishing/stock, order-status transitions/tracking, customer notifications, review moderation, enquiry inbox, contact settings, and analytics based on stored records.
 - Contact enquiries saved for signed-in users, verified-purchase reviews, notification inbox/read status, and polling for new order alerts.
 
 Browser notifications require the customer’s explicit permission and work while the website is open. Background Web Push and transactional order email require separate delivery-provider/service-worker setup; neither is simulated. Supabase’s Auth service handles its own confirmation/recovery emails. Public product photography and brand copy are editorial assets; example contact details remain clearly labelled until replaced.
@@ -107,3 +107,26 @@ If saving settings reports missing `closure_reason` or `store_open` columns, app
 Pending/abandoned Paystack transactions remain pending and cannot be treated as failed. Failed verification responses must match the stored order/reference/amount/currency before unlocking a retry. Successful payments reconcile idempotently. If saving an initialized checkout link fails, initialization still returns the verified Paystack URL; payment verification uses the stored reference.
 
 For Paystack accounts with the Webhook Endpoints API enabled, `npm run setup:payment-webhook` registers only this project's URL for `charge.success`, preserves other endpoints, verifies registration and sends a no-charge delivery ping. `npm run check:payment-webhook` is a read-only registration check. Accounts without endpoint API access must set the webhook URL in the Paystack dashboard.
+
+## Automatic paid invoices
+
+Migration `supabase/migrations/202611180001_paid_invoices.sql` creates immutable invoice snapshots automatically when verified Paystack payment changes an order to paid. Repeated verification/webhooks produce one invoice per order. Existing paid orders with matching successful payments are backfilled. Unpaid orders cannot issue invoices. Invoice creation is in the payment transaction, so a verified paid order and its invoice commit together.
+
+Customers can view/download invoices from paid orders and the successful-payment return page. Administrators have an **Invoices** tab plus invoice actions on paid orders. The authenticated `/invoices/:orderId` route uses owner/admin RLS. Invoice records cannot be inserted, changed or deleted by browser clients or the payment service role; the database trigger creates them. Customer, business, item and payment details are preserved at issue time.
+
+The white invoice preview and downloadable A4 PDF carry a faint, centred, diagonal OPTIMAX watermark in the Vinoff reference style. Each PDF page has the watermark and page numbering. There are no stamps, approval gates, signatures or administrator names. Amounts are labelled NGN; product payment excludes separately arranged delivery charges. PDF files are produced from the saved invoice snapshot when viewed/downloaded; no public storage bucket is used for private customer invoices. `npm run test:invoices` validates totals and pagination; `node scripts/test-invoice.mjs --write-preview` writes synthetic samples under the ignored `output/pdf/` directory.
+
+## Demo catalog and pricing
+
+Coupons are removed from administration and checkout. Migration `202611180002_remove_coupons.sql` removes the coupon table and replaces the old four-argument checkout RPC with the full-price three-argument `place_order`. Existing financial snapshots retain their original values; no new coupon or discount can be applied. Customer orders and invoice previews/PDFs no longer display a discount row. Any separately negotiated arrangement is handled directly with the team.
+
+`scripts/data/demo-products.mjs` contains 27 fictional listings: nine cameras, six locks, seven solar-energy items and five smart-home items. Prices, stock and specifications are explicitly labelled as demo data. Existing camera/lock photos are reused; four representative Wikimedia images have attribution under `/image-credits` and `src/config/imageCredits.js`. `npm run seed:demo-products` uploads the referenced images to Supabase Storage and inserts missing demo IDs only. Rerunning does not overwrite existing product edits or reset sold stock, and does not change store availability.
+
+## Professional order references
+
+Orders use `OPT-YYYYMMDD-000001` references based on their creation date in Africa/Lagos. A database counter assigns a unique serial across accounts each day; row locking prevents duplicate numbers. The counter resets for the next local date and expands beyond six digits when needed. Order retries reuse the existing reference. Customers cannot choose/change references or modify counters. Internal UUIDs and foreign-key links remain stable.
+
+Migration `202611180003_order_references.sql` backfills existing orders in creation order, adds their references to invoice metadata without altering issued numbers or amounts, and includes the reference in future invoice snapshots. Admin's top search finds orders by order reference, invoice number, customer name or phone; Orders and Invoices tabs also have filters. Customer order history, details, tracking, invoice preview and PDF use the readable reference. Customer tracking remains restricted to the signed-in account.
+
+
+Admin inventory: **Units to add → Add stock** increases the existing quantity using an admin-only atomic database operation. Product edits preserve stock changed by orders. Order creation reserves units, cancellation restores them, and shop/product/admin stock displays refresh every 15 seconds and when the page regains focus. On desktop, the inventory list scrolls independently from the product editor.

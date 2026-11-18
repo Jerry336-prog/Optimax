@@ -1,3 +1,5 @@
+import { orderReference } from "../../lib/orderReference";
+import InvoiceActions from "../../components/invoice/InvoiceActions";
 import { ArrowUpRight, Plus } from "lucide-react";
 import ProfilePhotoPicker from "../../components/account/ProfilePhotoPicker";
 import { avatarUrl } from "../../lib/avatar";
@@ -286,7 +288,7 @@ export default function ProtectedPage({
                           <p className="eyebrow">
                             {new Date(row.created_at).toLocaleDateString()}
                           </p>
-                          <h2>Order {row.id.slice(0, 8)}</h2>
+                          <h2>Order {orderReference(row)}</h2>
                         </div>
                         <span className="status-badge">{row.status}</span>
                       </div>
@@ -323,6 +325,7 @@ export default function ProtectedPage({
                             </button>
                           )}
                       </div>
+                      {row.payment_status === "paid" && <InvoiceActions orderId={row.id} />}
                     </>
                   ) : kind === "addresses" ? (
                     <>

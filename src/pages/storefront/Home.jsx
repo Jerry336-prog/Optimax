@@ -106,7 +106,7 @@ export default function Home() {
                 <Icon size={19} />
               </div>
               <div className="collection-image">
-                <img src={`/product ${image}.jpg`} alt={name} loading="lazy" />
+                <img src={image} alt={name} loading="lazy" />
               </div>
               <div className="collection-bottom">
                 <div>

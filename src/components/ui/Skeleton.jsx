@@ -127,20 +127,6 @@ export default function Skeleton({
         </div>
       </>
     );
-  else if (variant === "comparison")
-    content = (
-      <div className="sk-comparison">
-        {Array.from({ length: 3 }, (_, i) => (
-          <div key={i}>
-            <Block className="sk-product-image" />
-            <Lines />
-            {Array.from({ length: 4 }, (_, j) => (
-              <Block className="sk-input" key={j} />
-            ))}
-          </div>
-        ))}
-      </div>
-    );
   else if (variant === "admin")
     content = (
       <>

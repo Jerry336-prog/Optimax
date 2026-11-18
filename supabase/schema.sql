@@ -422,3 +422,216 @@ drop policy if exists optimax_product_image_delete on storage.objects;
 create policy optimax_product_image_delete on storage.objects for delete to authenticated using (bucket_id='product-images' and public.is_admin());
 notify pgrst, 'reload schema';
 commit;
+
+begin;
+create sequence if not exists public.invoice_number_seq;
+revoke all on sequence public.invoice_number_seq from public,anon,authenticated,service_role;
+create table if not exists public.invoices (
+ id uuid primary key default gen_random_uuid(),
+ order_id uuid not null unique references public.orders(id),
+ user_id uuid not null references auth.users(id),
+ invoice_number text not null unique,
+ issued_at timestamptz not null,
+ created_at timestamptz not null default now(),
+ currency text not null default 'NGN' check(currency='NGN'),
+ subtotal numeric(16,2) not null check(subtotal>=0),
+ discount numeric(16,2) not null check(discount>=0),
+ total numeric(16,2) not null check(total>=0 and total=subtotal-discount),
+ items jsonb not null check(jsonb_typeof(items)='array' and jsonb_array_length(items)>0),
+ customer_snapshot jsonb not null,
+ business_snapshot jsonb not null,
+ payment_reference text not null,
+ payment_method text not null default 'paystack'
+);
+alter table public.invoices enable row level security;
+revoke all on public.invoices from anon,authenticated,service_role;
+grant select on public.invoices to authenticated,service_role;
+drop policy if exists invoice_owner_admin_read on public.invoices;
+create policy invoice_owner_admin_read on public.invoices for select to authenticated using(user_id=auth.uid() or public.is_admin());
+create or replace function public.create_paid_invoice(p_order uuid) returns uuid language plpgsql security definer set search_path='' as $$
+declare o public.orders%rowtype; pay public.payment_sessions%rowtype; v_id uuid; v_items jsonb; v_subtotal numeric; v_customer jsonb; v_business jsonb;
+begin
+ select * into o from public.orders where id=p_order for update;
+ if not found or o.payment_status<>'paid' then raise exception 'An invoice requires a verified paid order.'; end if;
+ select id into v_id from public.invoices where order_id=o.id;
+ if found then return v_id; end if;
+ select * into pay from public.payment_sessions where order_id=o.id and status='success' and amount=round(o.total*100)::bigint and currency='NGN' order by paid_at,id limit 1;
+ if not found then raise exception 'An invoice requires a verified payment.'; end if;
+ select jsonb_agg(jsonb_build_object('product_id',i.product_id,'name',i.product_name,'quantity',i.quantity,'unit_price',i.unit_price,'line_total',i.quantity*i.unit_price) order by i.id),sum(i.quantity*i.unit_price) into v_items,v_subtotal from public.order_items i where i.order_id=o.id;
+ if v_items is null or v_subtotal-o.discount<>o.total then raise exception 'Invoice totals do not match the order.'; end if;
+ select o.address_snapshot || jsonb_build_object('name',coalesce(nullif(o.address_snapshot->>'recipient',''),nullif(p.full_name,''),'Customer'),'email',coalesce(u.email,'')) into v_customer from auth.users u left join public.profiles p on p.id=u.id where u.id=o.user_id;
+ select jsonb_build_object('name','Optimax Resources','email',s.email,'phone',s.phone,'address',s.address,'area',s.area) into v_business from public.site_settings s where s.id='store';
+ insert into public.invoices(order_id,user_id,invoice_number,issued_at,subtotal,discount,total,items,customer_snapshot,business_snapshot,payment_reference)
+ values(o.id,o.user_id,'OPT-'||to_char(coalesce(pay.paid_at,now()) at time zone 'Africa/Lagos','YYYY')||'-'||lpad(nextval('public.invoice_number_seq')::text,6,'0'),coalesce(pay.paid_at,now()),v_subtotal,o.discount,o.total,v_items,coalesce(v_customer,o.address_snapshot),coalesce(v_business,jsonb_build_object('name','Optimax Resources')),pay.reference) returning id into v_id;
+ return v_id;
+end $$;
+revoke all on function public.create_paid_invoice(uuid) from public,anon,authenticated,service_role;
+create or replace function public.invoice_after_verified_payment() returns trigger language plpgsql security definer set search_path='' as $$
+begin
+ perform public.create_paid_invoice(new.id);
+ return new;
+end $$;
+revoke all on function public.invoice_after_verified_payment() from public,anon,authenticated,service_role;
+drop trigger if exists invoice_after_verified_payment on public.orders;
+create trigger invoice_after_verified_payment after update of payment_status on public.orders for each row when(new.payment_status='paid' and old.payment_status is distinct from 'paid') execute function public.invoice_after_verified_payment();
+create or replace function public.preserve_invoice_snapshot() returns trigger language plpgsql set search_path='' as $$
+begin raise exception 'Issued invoices cannot be changed or deleted.'; end $$;
+revoke all on function public.preserve_invoice_snapshot() from public,anon,authenticated,service_role;
+drop trigger if exists preserve_invoice_snapshot on public.invoices;
+create trigger preserve_invoice_snapshot before update or delete on public.invoices for each row execute function public.preserve_invoice_snapshot();
+-- Backfill only historical orders with successful, matching verified payments.
+do $$ declare r record; begin
+ for r in select o.id from public.orders o where o.payment_status='paid' and not exists(select 1 from public.invoices i where i.order_id=o.id) and exists(select 1 from public.payment_sessions s where s.order_id=o.id and s.status='success' and s.amount=round(o.total*100)::bigint and s.currency='NGN') loop
+  perform public.create_paid_invoice(r.id);
+ end loop;
+end $$;
+notify pgrst,'reload schema';
+commit;
+
+begin;
+-- Retain historical order/invoice amounts; no coupon feature remains available.
+drop function if exists public.place_order(jsonb,uuid,uuid,text);
+drop table if exists public.coupons;
+create or replace function public.place_order(p_items jsonb,p_address uuid,p_request_key uuid) returns uuid language plpgsql security definer set search_path='' as $$
+declare v_user uuid:=auth.uid(); v_id uuid; v_address jsonb; v_total numeric:=0; r record; p public.products%rowtype;
+begin
+ if v_user is null then raise exception 'Please sign in to place an order.'; end if;
+ if p_request_key is null then raise exception 'Missing order request identifier.'; end if;
+ perform pg_advisory_xact_lock(hashtextextended(v_user::text||p_request_key::text,0));
+ select id into v_id from public.orders where user_id=v_user and request_key=p_request_key;
+ if found then return v_id; end if;
+ perform 1 from public.site_settings where id='store' and store_open for share;
+ if not found then raise exception 'The store is temporarily closed. Please contact our team on WhatsApp.'; end if;
+ if p_items is null or jsonb_typeof(p_items)<>'array' then raise exception 'Your bag is invalid.'; end if;
+ if jsonb_array_length(p_items)=0 or jsonb_array_length(p_items)>100 then raise exception 'Your bag must contain 1 to 100 products.'; end if;
+ if exists(select 1 from jsonb_array_elements(p_items) x where (x->>'quantity') is null or (x->>'quantity')!~'^[1-9][0-9]{0,3}$' or (x->>'id') is null) then raise exception 'Invalid product quantity.'; end if;
+ select to_jsonb(a)-'user_id'-'id'-'created_at' into v_address from public.addresses a where id=p_address and user_id=v_user;
+ if v_address is null then raise exception 'Choose one of your saved delivery addresses.'; end if;
+ -- Deterministic lock order prevents competing carts from taking locks in opposite order.
+ for r in select (x->>'id')::uuid as id,sum((x->>'quantity')::int)::int as quantity from jsonb_array_elements(p_items) x group by 1 order by 1 loop
+  select * into p from public.products where id=r.id for update;
+  if not found or not p.active then raise exception 'A product in your bag is no longer available.'; end if;
+  if p.stock<r.quantity then raise exception 'Not enough stock for %. Only % available.',p.name,p.stock; end if;
+  v_total:=v_total+(p.price*r.quantity);
+ end loop;
+ insert into public.orders(user_id,total,address_snapshot,request_key) values(v_user,v_total,v_address,p_request_key) returning id into v_id;
+ for r in select (x->>'id')::uuid as id,sum((x->>'quantity')::int)::int as quantity from jsonb_array_elements(p_items) x group by 1 order by 1 loop
+  select * into p from public.products where id=r.id;
+  insert into public.order_items(order_id,product_id,quantity,unit_price,product_name,image) values(v_id,p.id,r.quantity,p.price,p.name,coalesce(p.images[1],''));
+  update public.products set stock=stock-r.quantity where id=p.id;
+ end loop;
+ insert into public.tracking_events(order_id,status,note) values(v_id,'pending','Order received. The store will confirm delivery and payment arrangements.');
+ insert into public.notifications(user_id,title,body,order_id) values(v_user,'Order received','Your order is awaiting store confirmation.',v_id);
+ delete from public.carts where user_id=v_user;
+ return v_id;
+end $$;
+revoke all on function public.place_order(jsonb,uuid,uuid) from public,anon;
+grant execute on function public.place_order(jsonb,uuid,uuid) to authenticated;
+
+notify pgrst,'reload schema';
+commit;
+
+begin;
+alter table public.orders add column if not exists order_ref text;
+create table if not exists public.order_reference_counters (
+ reference_date date primary key,
+ last_number bigint not null check(last_number>0)
+);
+alter table public.order_reference_counters enable row level security;
+revoke all on public.order_reference_counters from public,anon,authenticated,service_role;
+-- Assign references to historical orders in creation order, in Lagos local time.
+with numbered as (
+ select id,to_char(created_at at time zone 'Africa/Lagos','YYYYMMDD') as day,
+ row_number() over(partition by (created_at at time zone 'Africa/Lagos')::date order by created_at,id) as serial
+ from public.orders
+) update public.orders o set order_ref='OPT-'||n.day||'-'||lpad(n.serial::text,greatest(6,length(n.serial::text)),'0') from numbered n where n.id=o.id and o.order_ref is null;
+insert into public.order_reference_counters(reference_date,last_number)
+ select (created_at at time zone 'Africa/Lagos')::date,max(substring(order_ref from 14)::bigint) from public.orders group by 1
+on conflict(reference_date) do update set last_number=greatest(public.order_reference_counters.last_number,excluded.last_number);
+alter table public.orders alter column order_ref set not null;
+create unique index if not exists orders_order_reference_unique on public.orders(order_ref);
+alter table public.orders drop constraint if exists orders_order_reference_format;
+alter table public.orders add constraint orders_order_reference_format check(order_ref ~ '^OPT-[0-9]{8}-[0-9]{6,}$');
+create or replace function public.assign_order_reference() returns trigger language plpgsql security definer set search_path='' as $$
+declare v_day date; v_number bigint;
+begin
+ new.created_at:=coalesce(new.created_at,now());
+ v_day:=(new.created_at at time zone 'Africa/Lagos')::date;
+ insert into public.order_reference_counters(reference_date,last_number) values(v_day,1)
+ on conflict(reference_date) do update set last_number=public.order_reference_counters.last_number+1 returning last_number into v_number;
+ new.order_ref:='OPT-'||to_char(v_day,'YYYYMMDD')||'-'||lpad(v_number::text,greatest(6,length(v_number::text)),'0');
+ return new;
+end $$;
+revoke all on function public.assign_order_reference() from public,anon,authenticated,service_role;
+drop trigger if exists assign_order_reference on public.orders;
+create trigger assign_order_reference before insert on public.orders for each row execute function public.assign_order_reference();
+create or replace function public.preserve_order_reference() returns trigger language plpgsql set search_path='' as $$
+begin
+ if new.order_ref is distinct from old.order_ref then raise exception 'An order reference cannot be changed.'; end if;
+ return new;
+end $$;
+revoke all on function public.preserve_order_reference() from public,anon,authenticated,service_role;
+drop trigger if exists preserve_order_reference on public.orders;
+create trigger preserve_order_reference before update of order_ref on public.orders for each row execute function public.preserve_order_reference();
+alter table public.invoices add column if not exists order_ref text;
+-- This one-time metadata backfill preserves every issued amount and invoice number.
+-- Both trigger changes and the update are atomic within this transaction.
+drop trigger if exists preserve_invoice_snapshot on public.invoices;
+update public.invoices i set order_ref=o.order_ref from public.orders o where o.id=i.order_id and i.order_ref is null;
+alter table public.invoices alter column order_ref set not null;
+create trigger preserve_invoice_snapshot before update or delete on public.invoices for each row execute function public.preserve_invoice_snapshot();
+create or replace function public.create_paid_invoice(p_order uuid) returns uuid language plpgsql security definer set search_path='' as $$
+declare o public.orders%rowtype; pay public.payment_sessions%rowtype; v_id uuid; v_items jsonb; v_subtotal numeric; v_customer jsonb; v_business jsonb;
+begin
+ select * into o from public.orders where id=p_order for update;
+ if not found or o.payment_status<>'paid' then raise exception 'An invoice requires a verified paid order.'; end if;
+ select id into v_id from public.invoices where order_id=o.id;
+ if found then return v_id; end if;
+ select * into pay from public.payment_sessions where order_id=o.id and status='success' and amount=round(o.total*100)::bigint and currency='NGN' order by paid_at,id limit 1;
+ if not found then raise exception 'An invoice requires a verified payment.'; end if;
+ select jsonb_agg(jsonb_build_object('product_id',i.product_id,'name',i.product_name,'quantity',i.quantity,'unit_price',i.unit_price,'line_total',i.quantity*i.unit_price) order by i.id),sum(i.quantity*i.unit_price) into v_items,v_subtotal from public.order_items i where i.order_id=o.id;
+ if v_items is null or v_subtotal-o.discount<>o.total then raise exception 'Invoice totals do not match the order.'; end if;
+ select o.address_snapshot || jsonb_build_object('name',coalesce(nullif(o.address_snapshot->>'recipient',''),nullif(p.full_name,''),'Customer'),'email',coalesce(u.email,'')) into v_customer from auth.users u left join public.profiles p on p.id=u.id where u.id=o.user_id;
+ select jsonb_build_object('name','Optimax Resources','email',s.email,'phone',s.phone,'address',s.address,'area',s.area) into v_business from public.site_settings s where s.id='store';
+ insert into public.invoices(order_id,user_id,order_ref,invoice_number,issued_at,subtotal,discount,total,items,customer_snapshot,business_snapshot,payment_reference)
+ values(o.id,o.user_id,o.order_ref,'OPT-'||to_char(coalesce(pay.paid_at,now()) at time zone 'Africa/Lagos','YYYY')||'-'||lpad(nextval('public.invoice_number_seq')::text,6,'0'),coalesce(pay.paid_at,now()),v_subtotal,o.discount,o.total,v_items,coalesce(v_customer,o.address_snapshot),coalesce(v_business,jsonb_build_object('name','Optimax Resources')),pay.reference) returning id into v_id;
+ return v_id;
+end $$;
+revoke all on function public.create_paid_invoice(uuid) from public,anon,authenticated,service_role;
+
+do $$ declare r record; begin
+ for r in select o.id from public.orders o where o.payment_status='paid' and not exists(select 1 from public.invoices i where i.order_id=o.id) and exists(select 1 from public.payment_sessions s where s.order_id=o.id and s.status='success' and s.amount=round(o.total*100)::bigint and s.currency='NGN') loop
+  perform public.create_paid_invoice(r.id);
+ end loop;
+end $$;
+notify pgrst,'reload schema';
+commit;
+
+begin;
+-- Retain each demo product and its normal cover image, stock and pricing.
+update public.products
+set name = regexp_replace(name, '^360 Demo', 'Demo'),
+    description = 'Demo product for preview. Pricing, specifications and stock are sample data. Original illustrative product render, not real product photography.',
+    specifications = specifications - 'Preview'
+where id in ('d3e00000-0000-4000-8000-000000000025','d3e00000-0000-4000-8000-000000000026','d3e00000-0000-4000-8000-000000000027')
+  and name like '360 Demo%';
+alter table public.products drop column if exists spin_images;
+notify pgrst, 'reload schema';
+commit;
+
+begin;
+create or replace function public.add_product_stock(p_product uuid,p_quantity integer)
+returns integer language plpgsql security definer set search_path='' as $$
+declare remaining integer;
+begin
+ if not public.is_admin() then raise exception 'Only administrators can add stock.' using errcode='42501'; end if;
+ if p_quantity is null or p_quantity < 1 then raise exception 'Enter a positive whole number of units.'; end if;
+ update public.products set stock=stock+p_quantity where id=p_product returning stock into remaining;
+ if not found then raise exception 'Product not found.'; end if;
+ return remaining;
+end;
+$$;
+revoke all on function public.add_product_stock(uuid,integer) from public,anon;
+grant execute on function public.add_product_stock(uuid,integer) to authenticated;
+notify pgrst,'reload schema';
+commit;

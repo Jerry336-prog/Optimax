@@ -1,3 +1,4 @@
+import InvoiceActions from "../../components/invoice/InvoiceActions";
 import { PageSkeleton } from "../../components/ui/Skeleton";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -57,6 +58,7 @@ export default function PaymentReturn() {
           Verify again
         </button>
       )}
+      {state.data?.status === "paid" && <InvoiceActions orderId={state.data.order_id} />}
       <Link
         className="button primary"
         to={

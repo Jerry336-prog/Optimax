@@ -1,0 +1,3 @@
+// Read-only summary: no customer information or credentials printed.
+const url=process.env.VITE_SUPABASE_URL;const key=process.env.VITE_SUPABASE_PUBLISHABLE_KEY||process.env.VITE_SUPABASE_ANON_KEY;
+try{const r=await fetch(`${url}/rest/v1/products?select=id,name,category,stock,active,images&order=created_at.desc`,{headers:{apikey:key},signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error();const data=await r.json();console.log(JSON.stringify(data.map(p=>({id:p.id,name:p.name,category:p.category,stock:p.stock,active:p.active,image_count:p.images?.length||0}))));}catch{console.log('Catalog read failed.');process.exitCode=1;}

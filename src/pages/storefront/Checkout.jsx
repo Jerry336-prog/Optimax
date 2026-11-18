@@ -56,7 +56,6 @@ export default function Checkout() {
           p_items: cart.map((p) => ({ id: p.id, quantity: p.quantity })),
           p_address: fields.get("address"),
           p_request_key: requestKey,
-          p_coupon: fields.get("coupon").trim(),
         }),
       );
       clearCart();
@@ -137,14 +136,6 @@ export default function Checkout() {
                 </select>
               </label>
             )}
-            <label className="field-label">
-              Coupon code (optional)
-              <input
-                name="coupon"
-                maxLength={32}
-                placeholder="Enter your code"
-              />
-            </label>
             <div className="checkout-notice">
               <h3>Payment & delivery</h3>
               <p>
@@ -177,8 +168,8 @@ export default function Checkout() {
               <strong>{currency(total)}</strong>
             </div>
             <p>
-              Any valid coupon discount is calculated securely when the order is
-              created. Delivery is arranged separately.
+              Your product total is confirmed securely when the order is created.
+              Delivery is arranged separately.
             </p>
             {invalid && (
               <p role="alert">

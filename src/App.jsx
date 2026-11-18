@@ -16,12 +16,12 @@ import SavedSync from "./app/SavedSync";
 import StoreSettings from "./app/StoreSettings";
 import NotificationBridge from "./app/NotificationBridge";
 import ErrorBoundary from "./app/ErrorBoundary";
+const Invoice = lazy(() => import("./pages/account/Invoice"));
 const PaymentReturn = lazy(() => import("./pages/storefront/PaymentReturn"));
 const Shop = lazy(() => import("./pages/storefront/Shop"));
 const Product = lazy(() => import("./pages/storefront/Product"));
 const Cart = lazy(() => import("./pages/storefront/Cart"));
 const Checkout = lazy(() => import("./pages/storefront/Checkout"));
-const Compare = lazy(() => import("./pages/storefront/Compare"));
 const Tracking = lazy(() => import("./pages/storefront/Tracking"));
 const Info = lazy(() => import("./pages/storefront/Info"));
 const Auth = lazy(() => import("./pages/auth/Auth"));
@@ -51,7 +51,6 @@ export default function App() {
             <Route path="shop" element={<Shop />} />
             <Route path="search" element={<Shop />} />
             <Route path="product/:id" element={<Product />} />
-            <Route path="compare" element={<Compare />} />
             <Route path="cart" element={<Cart />} />
             <Route
               path="checkout"
@@ -77,6 +76,7 @@ export default function App() {
                 </RequireAuth>
               }
             />
+            <Route path="invoices/:orderId" element={<RequireAuth><Invoice /></RequireAuth>} />
             <Route path="account" element={<Home />} />
             {["login", "register", "forgot-password", "reset-password"].map(
               (path) => (
@@ -102,7 +102,7 @@ export default function App() {
             />
             <Route path="about" element={<About />} />
             <Route path="contact" element={<Contact />} />
-            {["categories", "privacy"].map((kind) => (
+            {["categories", "privacy", "image-credits"].map((kind) => (
               <Route key={kind} path={kind} element={<Info kind={kind} />} />
             ))}
             <Route

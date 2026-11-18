@@ -1,3 +1,5 @@
+import { orderReference } from "../../lib/orderReference";
+import InvoiceActions from "../../components/invoice/InvoiceActions";
 import { ArrowLeft } from "lucide-react";
 import Skeleton from "../../components/ui/Skeleton";
 import AccountNav from "../../components/ui/AccountNav";
@@ -53,7 +55,7 @@ export default function OrderDetails({
       ) : (
         <div className="cart-layout">
           <div className="panel">
-            <p className="eyebrow">ORDER {order.id}</p>
+            <p className="eyebrow">ORDER {orderReference(order)}</p>
             <h2>{order.status}</h2>
             {order.order_items.map((item) => (
               <div className="inventory-row" key={item.id}>
@@ -67,10 +69,6 @@ export default function OrderDetails({
               </div>
             ))}
             <div className="spec">
-              <span>Discount</span>
-              <span>{currency(order.discount)}</span>
-            </div>
-            <div className="spec">
               <strong>Product total</strong>
               <strong>{currency(order.total)}</strong>
             </div>
@@ -78,6 +76,7 @@ export default function OrderDetails({
               Payment: {order.payment_status}. Delivery fees and payment
               arrangements are confirmed directly by the store.
             </p>
+            {order.payment_status === "paid" && <InvoiceActions orderId={order.id} />}
             <PayOrder order={order} refresh={refresh} />
             <h3>Delivery address</h3>
             <p>

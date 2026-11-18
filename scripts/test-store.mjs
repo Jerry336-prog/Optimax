@@ -30,9 +30,11 @@ assert.equal(useShop.getState().wishlist.length, 0);
 useShop.getState().view(product);
 useShop.getState().view(product);
 assert.equal(useShop.getState().recentlyViewed.length, 1);
-for (let i = 0; i < 4; i++)
-  useShop.getState().compare({ ...product, id: String(i) });
-assert.equal(useShop.getState().comparison.length, 3);
+memory.set("optimax-shopping", JSON.stringify({ version: 1, state: { comparison: [product], wishlist: [product] } }));
+await useShop.persist.rehydrate();
+assert.equal(useShop.getState().comparison, undefined);
+assert.equal(useShop.getState().compare, undefined);
+assert.equal(useShop.getState().wishlist.length, 1);
 console.log(
-  "PASS bag stock limits, dirty-state persistence, quantity/removal, wishlist toggle, recent-view deduplication, comparison limit",
+  "PASS bag stock limits, dirty-state persistence, quantity/removal, wishlist toggle, recent-view deduplication, legacy comparison removed without losing wishlist",
 );

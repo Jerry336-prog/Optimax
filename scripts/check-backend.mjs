@@ -17,12 +17,12 @@ if (!url || !key) {
     "carts",
     "notifications",
     "tracking_events",
-    "coupons",
     "enquiries",
     "reviews",
     "site_settings",
     "payment_sessions",
     "account_role_events",
+    "invoices",
   ];
   let ready = true;
   for (const table of tables) {
@@ -41,10 +41,10 @@ if (!url || !key) {
         "carts",
         "notifications",
         "tracking_events",
-        "coupons",
-        "enquiries",
+            "enquiries",
         "payment_sessions",
         "account_role_events",
+    "invoices",
       ].includes(table);
       const okay =
         response.ok ||
