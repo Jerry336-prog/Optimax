@@ -48,7 +48,7 @@ export default function About() {
         />
         <div>
           <span>THOUGHTFUL TECHNOLOGY. EVERYDAY POSSIBILITIES.</span>
-          <span>OPTIMAX RESOURCES ↗</span>
+          <span>OPTIMAX RESOURCES <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" /></span>
         </div>
       </section>
       <section className="container story-intro">

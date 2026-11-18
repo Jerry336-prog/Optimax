@@ -1,3 +1,4 @@
+import { ArrowUpRight, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSession } from "../store/session";
@@ -45,14 +46,14 @@ export default function NotificationBridge() {
         to="/account/notifications"
         onClick={() => setNotice(null)}
       >
-        Open inbox ↗
+        Open inbox <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
       </Link>
       <button
         className="icon-button"
         aria-label="Dismiss notification"
         onClick={() => setNotice(null)}
       >
-        ×
+        <X size={18} aria-hidden="true" />
       </button>
     </aside>
   ) : null;

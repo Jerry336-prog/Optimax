@@ -1,3 +1,4 @@
+import { ArrowUpRight, ArrowLeft } from "lucide-react";
 import Skeleton from "../../components/ui/Skeleton";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -119,7 +120,7 @@ function ProductContent({ product }) {
                 : "Compare this product"}
             </button>
             <Link className="text-link" to="/compare">
-              View comparison ↗
+              View comparison <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
             </Link>
             {business.whatsapp && (
               <a
@@ -128,7 +129,7 @@ function ProductContent({ product }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                Ask / order on WhatsApp ↗
+                Ask / order on WhatsApp <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
               </a>
             )}
           </div>
@@ -156,7 +157,7 @@ export default function Product() {
   return (
     <section className="container page">
       <Link className="text-link" to="/shop">
-        ← Back to collection
+        <ArrowLeft size={16} aria-hidden="true" className="inline-icon" /> Back to collection
       </Link>
       {query.loading ? (
         <Skeleton variant="product" label="Loading product details…" />

@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import Skeleton from "../ui/Skeleton";
 import { Link } from "react-router-dom";
 import { useQuery } from "../../hooks/useQuery";
@@ -13,7 +14,7 @@ export default function FeaturedProducts() {
           <h2>From the collection.</h2>
         </div>
         <Link className="text-link" to="/shop">
-          Shop all products ↗
+          Shop all products <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
         </Link>
       </div>
       {query.loading ? (

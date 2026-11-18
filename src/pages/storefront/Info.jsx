@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { collections } from "../../lib/collections";
 export default function Info({ kind }) {
@@ -17,7 +18,7 @@ export default function Info({ kind }) {
                 <img src={`/product ${c.image}.jpg`} alt={c.name} />
               </div>
               <h2>{c.name}</h2>
-              <p>{c.label} ↗</p>
+              <p>{c.label} <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" /></p>
             </Link>
           ))}
         </div>
@@ -38,7 +39,7 @@ export default function Info({ kind }) {
       <div className="panel">
         <p>{content[2]}</p>
         <Link className="button secondary" to="/shop">
-          Explore the collection ↗
+          Explore the collection <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
         </Link>
       </div>
     </section>

@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import Skeleton from "../ui/Skeleton";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -102,7 +103,7 @@ export default function ProductReviews({ productId }) {
         </form>
       ) : (
         <Link className="text-link" to="/login">
-          Sign in to review a delivered purchase ↗
+          Sign in to review a delivered purchase <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
         </Link>
       )}
     </section>

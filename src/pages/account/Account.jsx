@@ -239,7 +239,7 @@ export default function Account({
                       Sign in <ArrowUpRight size={16} />
                     </Link>
                     <Link className="text-link" to="/register">
-                      Create an account ↗
+                      Create an account <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
                     </Link>
                   </div>
                 )}

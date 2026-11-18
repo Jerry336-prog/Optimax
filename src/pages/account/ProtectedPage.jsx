@@ -1,3 +1,4 @@
+import { ArrowUpRight, Plus } from "lucide-react";
 import ProfilePhotoPicker from "../../components/account/ProfilePhotoPicker";
 import { avatarUrl } from "../../lib/avatar";
 import { saveProfilePhoto } from "../../services/profile";
@@ -187,7 +188,7 @@ export default function ProtectedPage({
               className="button primary drawer-add-address"
               onClick={() => onAddressViewChange("new")}
             >
-              + Add an address
+              <Plus size={16} aria-hidden="true" /> Add an address
             </button>
           )}
           {kind === "addresses" &&
@@ -299,7 +300,7 @@ export default function ProtectedPage({
                           className="button secondary"
                           to={`/account/orders/${row.id}`}
                         >
-                          Order details & tracking ↗
+                          Order details & tracking <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
                         </AccountNav>
                         {row.status === "pending" &&
                           row.payment_status === "unpaid" && (
@@ -363,7 +364,7 @@ export default function ProtectedPage({
                             className="text-link"
                             to={`/account/orders/${row.order_id}`}
                           >
-                            View order ↗
+                            View order <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
                           </AccountNav>
                         )}
                         {!row.read_at && (

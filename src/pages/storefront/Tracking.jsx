@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 export default function Tracking() {
@@ -32,7 +33,7 @@ export default function Tracking() {
         <button className="button primary">Track order</button>
         <p role="alert">{message}</p>
         <Link className="text-link" to="/account/orders">
-          Find your orders ↗
+          Find your orders <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
         </Link>
       </form>
     </section>

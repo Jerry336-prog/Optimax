@@ -77,13 +77,19 @@ export default function Layout() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+  useEffect(() => {
+    if (!open) return;
+    const closeMenu = () => setOpen(false);
+    window.addEventListener("scroll", closeMenu, { passive: true });
+    return () => window.removeEventListener("scroll", closeMenu);
+  }, [open]);
   return (
     <>
       {business.store_open === false ? (
         <div className="announcement closure-banner" role="status">
           <strong>Store temporarily closed</strong>
           <span className="closure-banner-message">{business.closure_reason}</span>
-          {/^[0-9]{8,15}$/.test(business.whatsapp || "") && <a href={`https://wa.me/${business.whatsapp}?text=${encodeURIComponent("Hello Optimax, I need assistance while the store is closed.")}`} target="_blank" rel="noreferrer"><MessageCircle size={15} /> Chat with our team ↗</a>}
+          {/^[0-9]{8,15}$/.test(business.whatsapp || "") && <a href={`https://wa.me/${business.whatsapp}?text=${encodeURIComponent("Hello Optimax, I need assistance while the store is closed.")}`} target="_blank" rel="noreferrer"><MessageCircle size={15} /> Chat with our team <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" /></a>}
         </div>
       ) : (
         <div className="announcement">Smarter spaces. Better living.{" "}<span>Discover the Optimax collection <ArrowUpRight size={12} /></span></div>
@@ -154,6 +160,7 @@ export default function Layout() {
             <button
               className="icon-button mobile-menu"
               aria-label="Toggle navigation"
+              aria-expanded={open}
               onClick={() => setOpen(!open)}
             >
               {open ? <X /> : <Menu />}
@@ -227,7 +234,7 @@ export default function Layout() {
               {business.area}
             </p>
             <p>{business.phone}</p>
-            <a href={`mailto:${business.email}`}>{business.email} ↗</a>
+            <a href={`mailto:${business.email}`}>{business.email} <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" /></a>
             <span className="sample-note">Sample contact details</span>
           </div>
         </div>

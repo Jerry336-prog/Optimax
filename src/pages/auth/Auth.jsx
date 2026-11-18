@@ -1,3 +1,4 @@
+import { ArrowUpRight } from "lucide-react";
 import ProfilePhotoPicker from "../../components/account/ProfilePhotoPicker";
 import { queueSignupPhoto, clearSignupPhoto } from "../../services/pendingPhoto";
 import { useState } from "react";
@@ -167,7 +168,7 @@ export default function Auth() {
           to={mode === "login" ? `/register?${params}` : `/login?${params}`}
         >
           {mode === "login" ? "New here? Create an account" : "Back to sign in"}{" "}
-          ↗
+          <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
         </Link>
         {mode === "login" && (
           <Link className="text-link" to="/forgot-password">

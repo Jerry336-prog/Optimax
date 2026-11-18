@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import Skeleton from "../../components/ui/Skeleton";
 import AccountNav from "../../components/ui/AccountNav";
 import PayOrder from "../../components/product/PayOrder";
@@ -40,7 +41,7 @@ export default function OrderDetails({
             className="text-link"
             to="/account/orders"
           >
-            ← All orders
+            <ArrowLeft size={16} aria-hidden="true" className="inline-icon" /> All orders
           </AccountNav>
           <h1 className="spaced-title">Your order.</h1>
         </>

@@ -1,3 +1,4 @@
+import { ArrowUpRight, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 const questions = [
   [
@@ -32,7 +33,7 @@ export default function ShoppingFAQ() {
           place to start.
         </p>
         <Link className="text-link" to="/contact">
-          Still have a question? Let’s talk ↗
+          Still have a question? Let’s talk <ArrowUpRight size={16} aria-hidden="true" className="inline-icon" />
         </Link>
       </div>
       <div className="faq-list">
@@ -40,7 +41,7 @@ export default function ShoppingFAQ() {
           <details key={question}>
             <summary>
               {question}
-              <span aria-hidden="true">+</span>
+              <Plus size={20} aria-hidden="true" className="faq-expand-icon" />
             </summary>
             <p>{answer}</p>
           </details>

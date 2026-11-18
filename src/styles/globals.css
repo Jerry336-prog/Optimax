@@ -1598,13 +1598,13 @@ select {
 .faq-list summary::-webkit-details-marker {
   display: none;
 }
-.faq-list summary span {
+.faq-list summary .faq-expand-icon {
   font-size: 21px;
   font-weight: 400;
   color: var(--purple);
   transition: transform 0.2s;
 }
-.faq-list details[open] summary span {
+.faq-list details[open] summary .faq-expand-icon {
   transform: rotate(45deg);
 }
 .faq-list details > p {
@@ -3655,3 +3655,5 @@ select {
 .profile-photo-picker:has(.photo-file-input:focus-visible) .photo-upload-label { outline: 2px solid var(--purple); outline-offset: 4px; }
 .photo-remove { margin-left: 14px; font-size: .8rem; }
 .photo-upload-label.is-disabled { opacity: .5; cursor: wait; }
+
+.inline-icon { display: inline-block; vertical-align: middle; flex-shrink: 0; margin-inline-start: 3px; }
