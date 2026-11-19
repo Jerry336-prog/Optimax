@@ -4,10 +4,13 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-const {SUPABASE_ACCESS_TOKEN:token,PAYSTACK_SECRET_KEY:key,APP_ORIGIN:origin,VITE_SUPABASE_URL:url}=process.env;
+const {SUPABASE_ACCESS_TOKEN:token,PAYSTACK_SECRET_KEY:key,APP_ORIGIN:origin,APP_ALLOWED_ORIGINS:allowedOrigins="",VITE_SUPABASE_URL:url}=process.env;
 if(!/^sbp_[a-zA-Z0-9]+$/.test(token || '')) throw new Error('SUPABASE_ACCESS_TOKEN must be the generated personal access token beginning sbp_, not the token name or a project API key.');
 if(!/^sk_(live|test)_[a-zA-Z0-9]+$/.test(key || '')) throw new Error('A valid PAYSTACK_SECRET_KEY is required.');
 if(!origin || new URL(origin).origin!==origin) throw new Error('APP_ORIGIN must be an exact website origin without a trailing slash.');
+for (const allowed of allowedOrigins.split(',').map(value=>value.trim()).filter(Boolean)) {
+ if(new URL(allowed).origin!==allowed) throw new Error('APP_ALLOWED_ORIGINS must contain exact origins separated by commas.');
+}
 const ref=new URL(url).hostname.split('.')[0];
 if(!/^[a-z0-9]{20}$/.test(ref)) throw new Error('The Supabase project reference is invalid.');
 const directory=await mkdtemp(join(tmpdir(),'optimax-payment-deploy-'));
@@ -24,8 +27,8 @@ function cli(args) {
 }
 try {
   const file=join(directory,'payment.env');
-  await writeFile(file,`PAYSTACK_SECRET_KEY=${key}\nAPP_ORIGIN=${origin}\n`,{mode:0o600});
-  console.log('Uploading only PAYSTACK_SECRET_KEY and APP_ORIGIN to Supabase.');
+  await writeFile(file,`PAYSTACK_SECRET_KEY=${key}\nAPP_ORIGIN=${origin}\nAPP_ALLOWED_ORIGINS=${allowedOrigins}\n`,{mode:0o600});
+  console.log('Uploading only PAYSTACK_SECRET_KEY, APP_ORIGIN and APP_ALLOWED_ORIGINS to Supabase.');
   await cli(['secrets','set','--env-file',file]);
   await cli(['functions','deploy','paystack-init','paystack-verify','paystack-webhook','--use-api','--no-verify-jwt']);
   console.log('Payment functions deployed. Run npm run check:payments for read-only live checks.');

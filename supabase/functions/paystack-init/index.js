@@ -22,7 +22,7 @@ Deno.serve(async (request) => {
     const { order_id } = await request.json();
     if (!validUUID(order_id))
       return response({ error: "Invalid order reference." }, 400, cors);
-    const payment = await initializePayment(client, user, order_id, Deno.env.get("APP_ORIGIN"), paystack);
+    const payment = await initializePayment(client, user, order_id, cors["Access-Control-Allow-Origin"], paystack);
     return response(payment, 200, cors);
   } catch (error) {
     console.error("Payment initialization failed:", error.message);

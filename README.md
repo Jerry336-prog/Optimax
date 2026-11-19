@@ -25,12 +25,17 @@ npm run check:payments
 npm run audit:payments-db
 ```
 
-The deployment script uses the official Supabase CLI, uploads only the two payment settings, and deploys only `paystack-init`, `paystack-verify` and `paystack-webhook`. It never sends frontend variables or the management access token as function secrets. The read-only checker validates Paystack authentication and checks hosted function authentication, webhook signature rejection and browser CORS without creating an order or charge.
+The deployment script uses the official Supabase CLI, uploads only the three payment settings, and deploys only `paystack-init`, `paystack-verify` and `paystack-webhook`. It never sends frontend variables or the management access token as function secrets. The read-only checker validates Paystack authentication and checks hosted function authentication, webhook signature rejection and browser CORS without creating an order or charge.
 
 Set these in **Supabase → Edge Functions → Secrets**, never in the frontend:
 
 - `PAYSTACK_SECRET_KEY`: start with your Paystack test secret key.
-- `APP_ORIGIN`: your exact frontend origin, e.g. `http://127.0.0.1:5173` for development or your deployed HTTPS origin. This controls CORS and the payment return URL.
+- `APP_ORIGIN`: your exact deployed HTTPS origin (currently `https://optimax-eight.vercel.app`). This is the default payment return address.
+- `APP_ALLOWED_ORIGINS`: optional comma-separated exact trusted origins, such as `http://127.0.0.1:5173`. Requests from those origins are allowed and return to the same origin. Wildcard domains are not accepted.
+
+Payment functions run on Supabase, so adding a secret only to Vercel does not configure them. Set the active test secret under `PAYSTACK_SECRET_KEY` in the local `.env`, then run `npm run deploy:payments`. A variable named `PAYSTACK_TEST_SECRET_KEY` alone is not used by the runtime. Run `npm run check:payments` afterward; it verifies CORS, authentication and the active secret with read-only requests. Secrets must never have a `VITE_` prefix.
+
+For an isolated authenticated initialization check, run `node --env-file=.env scripts/check-test-checkout.mjs`. It refuses live keys, creates a temporary QA account/order, opens a Paystack test transaction without submitting payment, verifies its mode/amount, and removes the temporary Supabase records.
 
 Hosted functions receive `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` automatically. `SB_SECRET_KEY` is a server-only alternative if your project uses new secret keys. Functions manually validate the signed-in user with Supabase Auth. The public webhook validates Paystack’s HMAC signature instead of a user token.
 

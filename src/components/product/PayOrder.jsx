@@ -7,7 +7,7 @@ export default function PayOrder({ order, refresh }) {
   const closed = loading || !!error || business.store_open === false;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [uncertain, setUncertain] = useState(false);
+  const hasCheckout = order.payment_sessions?.some(session => session.status === "pending" && session.authorization_url);
   async function pay() {
     if (closed || busy) return;
     setBusy(true);
@@ -27,8 +27,7 @@ export default function PayOrder({ order, refresh }) {
         );
       location.assign(url.href);
     } catch (error) {
-      setUncertain(true);
-      setMessage(`${backendError(error)} If a checkout already opened, verify its status before starting another payment.`);
+      setMessage(`${backendError(error)} Checkout did not open. Please try again or contact the store.`);
     } finally {
       setBusy(false);
     }
@@ -56,7 +55,7 @@ export default function PayOrder({ order, refresh }) {
             ? "Payment failed. You can try again or cancel a pending order."
             : "Payment is still pending. No payment has been confirmed yet. Check again shortly.",
       );
-      if (result.status !== "pending") { setUncertain(false); refresh(); }
+      if (result.status !== "pending") refresh();
     } catch (error) {
       setMessage(backendError(error));
     } finally {
@@ -86,9 +85,9 @@ export default function PayOrder({ order, refresh }) {
               ? "Continue Paystack payment"
               : "Pay product total"}
         </button>
-        {(order.payment_status === "pending" || uncertain) && (
+        {hasCheckout && (
           <button className="button secondary" disabled={busy} onClick={verify}>
-            Verify payment
+            Check payment status
           </button>
         )}
       </div>

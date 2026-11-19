@@ -82,3 +82,15 @@ assert.equal((await initializePayment(initClient({session:{paid:true}}),{id:'cus
 await assert.rejects(()=>initializePayment(initClient({denied:true}),{id:'customer'},'order-id','http://127.0.0.1:5173',()=>assert.fail('must not contact Paystack when DB denies')),/Store closed/);
 await assert.rejects(()=>initializePayment(initClient(),{id:'customer'},'order-id','http://127.0.0.1:5173',async()=>({authorization_url:'https://evil.example/checkout'})),/unexpected checkout URL/);
 console.log('PASS server-priced initialization, callback metadata, paid-order handling, checkout reuse and closed-store rejection');
+
+const { paymentOrigin, paymentCors } = await import('../supabase/functions/_shared/paymentConfig.js');
+const deployedOrigin = 'https://optimax-eight.vercel.app';
+assert.equal(paymentOrigin(deployedOrigin, deployedOrigin, 'http://127.0.0.1:5173'), deployedOrigin);
+assert.equal(paymentOrigin('http://127.0.0.1:5173', deployedOrigin, 'http://127.0.0.1:5173'), 'http://127.0.0.1:5173');
+assert.equal(paymentOrigin(null, deployedOrigin), deployedOrigin);
+assert.throws(() => paymentOrigin('https://evil.example', deployedOrigin), /Origin not allowed/);
+assert.throws(() => paymentOrigin('https://optimax-eight.vercel.app.evil.example', deployedOrigin), /Origin not allowed/);
+assert.throws(() => paymentOrigin(null, 'https://example.com/path'), /invalid/);
+assert.ok(paymentCors(deployedOrigin)['Access-Control-Allow-Headers'].includes('x-supabase-client-platform'));
+assert.equal(paymentCors(deployedOrigin)['Access-Control-Allow-Origin'], deployedOrigin);
+console.log('PASS deployed/local exact origin allowlist, callback selection, and Supabase browser headers');

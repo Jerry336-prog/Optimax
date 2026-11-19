@@ -1,3 +1,4 @@
+import { paymentOrigin, paymentCors } from "./paymentConfig.js";
 import { reconcilePayment } from "./reconciliation.js";
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 export function server() {
@@ -18,22 +19,9 @@ export function secret() {
   return value;
 }
 export function headers(request) {
-  const origin = Deno.env.get("APP_ORIGIN");
-  if (!origin) throw new Error("The store callback origin is not configured.");
-  if (
-    request.headers.get("origin") &&
-    request.headers.get("origin") !== new URL(origin).origin
-  )
-    throw new Error("Origin not allowed.");
-  return {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": new URL(origin).origin,
-    "Access-Control-Allow-Headers":
-      "authorization, apikey, x-client-info, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    Vary: "Origin",
-  };
+  return paymentCors(paymentOrigin(request.headers.get("origin"), Deno.env.get("APP_ORIGIN"), Deno.env.get("APP_ALLOWED_ORIGINS")));
 }
+
 export function response(value, status = 200, cors = {}) {
   return new Response(JSON.stringify(value), {
     status,
