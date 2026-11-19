@@ -23,6 +23,7 @@ const Product = lazy(() => import("./pages/storefront/Product"));
 const Cart = lazy(() => import("./pages/storefront/Cart"));
 const Checkout = lazy(() => import("./pages/storefront/Checkout"));
 const Tracking = lazy(() => import("./pages/storefront/Tracking"));
+const Policy = lazy(() => import("./pages/storefront/Policy"));
 const Info = lazy(() => import("./pages/storefront/Info"));
 const Auth = lazy(() => import("./pages/auth/Auth"));
 const Admin = lazy(() => import("./pages/admin/Admin"));
@@ -102,7 +103,10 @@ export default function App() {
             />
             <Route path="about" element={<About />} />
             <Route path="contact" element={<Contact />} />
-            {["categories", "privacy", "image-credits"].map((kind) => (
+            <Route path="return-policy" element={<Policy kind="returns" />} />
+            <Route path="shipping-policy" element={<Policy kind="shipping" />} />
+            <Route path="privacy" element={<Policy kind="privacy" />} />
+            {["categories"].map((kind) => (
               <Route key={kind} path={kind} element={<Info kind={kind} />} />
             ))}
             <Route

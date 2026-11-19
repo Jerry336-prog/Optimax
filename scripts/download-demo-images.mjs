@@ -1,8 +1,6 @@
 import {mkdir,writeFile,stat} from 'node:fs/promises';
 const images=[
  ['foldable-solar-panel.webp','https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Foldable_solar_panel.webp/960px-Foldable_solar_panel.webp'],
- ['portable-power-station.jpg','https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Jackery_Explorer_300_Plus.jpg/960px-Jackery_Explorer_300_Plus.jpg'],
- ['smart-plug.jpg','https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Smart-plug.jpg/960px-Smart-plug.jpg'],
  ['smart-speaker.jpg','https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Echo_Dot_%283rd_Gen%29_01.jpg/960px-Echo_Dot_%283rd_Gen%29_01.jpg'],
 ];
 await mkdir('public/demo-products',{recursive:true});

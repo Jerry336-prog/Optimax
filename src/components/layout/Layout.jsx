@@ -241,8 +241,9 @@ export default function Layout() {
         <div className="footer-bottom">
           <span>© {new Date().getFullYear()} Optimax Resources.</span>
           <span>Smart devices. Human possibilities.</span>
+          <Link to="/return-policy">Return Policy</Link>
+          <Link to="/shipping-policy">Shipping Policy</Link>
           <Link to="/privacy">Privacy policy</Link>
-          <Link to="/image-credits">Image credits</Link>
         </div>
       </footer>
     </>
