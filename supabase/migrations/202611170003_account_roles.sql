@@ -32,4 +32,5 @@ begin
 end $$;
 revoke all on function public.set_account_role(uuid,text) from public,anon;
 grant execute on function public.set_account_role(uuid,text) to authenticated;
+notify pgrst, 'reload schema';
 commit;
